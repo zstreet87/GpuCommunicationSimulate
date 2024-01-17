@@ -66,13 +66,6 @@ int main() {
                     HIP_CHECK(hipMemcpyPeerAsync(gpuBuffers[targetGpu], targetGpu, sharedDataBuffers[sharedDataGpu], sharedDataGpu, sharedDataSize, streams[targetGpu]));
                 }
             }
-            // Synchronize all streams
-            for (int i = 0; i < numGPUs; ++i) {
-                if (i != sharedDataGpu) {
-                    HIP_CHECK(hipSetDevice(i));
-                    HIP_CHECK(hipStreamSynchronize(streams[i]));
-                }
-            }
         }
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> diff = end - start;
@@ -80,8 +73,12 @@ int main() {
         double bandwidthGBps = (sharedDataSize / (1024.0 * 1024.0 * 1024.0)) / timeTaken; // Convert bytes to GB and divide by seconds
         std::cout << "Completed data transfer for size: " << sharedDataSize << " bytes in " << timeTaken << " s, Bandwidth: " << bandwidthGBps << " GB/s" << std::endl;
         logFile << sharedDataSize << "," << std::setprecision(9) << timeTaken << "," << std::setprecision(9) << bandwidthGBps << std::endl;
-        // std::cout << "Completed data transfer for size: " << sharedDataSize << " bytes in " << diff.count() << " s" << std::endl;
-        // logFile << sharedDataSize << "," << std::setprecision(9) << diff.count() << std::endl;
+
+        // Synchronize all streams
+        for (int i = 0; i < numGPUs; ++i) {
+            HIP_CHECK(hipSetDevice(i));
+            HIP_CHECK(hipStreamSynchronize(streams[i]));
+        }
     }
 
     // Cleanup
